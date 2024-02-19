@@ -26,7 +26,6 @@ export const handleMessage = async (ws, message) => {
     if (message.type === 'reg') {
       const user = JSON.parse(message.data)
       const newUser = await registerUser(user)
-      // await registerUser(user)
       // console.log(`newUser: ${JSON.stringify(newUser)}`)
       await sendRegMessage(ws, newUser, false, '')
     }
