@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';
 import { handleMessage } from './controllers/message.js'
+import { deleteActiveUser } from './services/users.js'
 
 const wsPort = 3000
 let sockets = []
@@ -25,7 +26,8 @@ export const httpServer = http.createServer(function (req, res) {
     //     console.log('received:', JSON.parse(data));
     // }
 
-    const onConnection = (ws) => {
+    const onConnection = async (ws) => {
+        ws.id = Math.floor(Math.random() * 100)
         sockets.push(ws)
         ws.on('message', async (data) => {
             const message = JSON.parse(data)
@@ -33,10 +35,15 @@ export const httpServer = http.createServer(function (req, res) {
             await handleMessage(ws, message)
         });
         // ws.send('something');
+        ws.on('close', async () => {
+          sockets.filter((c) => c.readyState !== 3)
+          console.log(`WebSocket with ID=${ws.id} was closed`)
+          await deleteActiveUser(ws.id)
+        })
     }
     
     // ws.on('message', (data) => onMessage(data))
-    wss.on('connection', (ws) => onConnection(ws))
+    wss.on('connection', async (ws) => await onConnection(ws))
 });
 
 console.log(`WebSocket server started on port ${wsPort}`)
