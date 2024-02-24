@@ -14,12 +14,12 @@ const sendRegMessage = async (ws, user, error, errorText) => {
   const message = JSON.stringify({
     type: "reg",
     data:
-        JSON.stringify({
-            name,
-            index,
-            error,
-            errorText
-        }),
+      JSON.stringify({
+        name,
+        index,
+        error,
+        errorText
+      }),
     id: 0,
   })
   console.log(`sendRegMessage message: ${JSON.stringify(message)}`)
@@ -35,8 +35,8 @@ const createRoom = async (roomId, user) => {
   if (rooms.length === 0 || rooms.filter(it => it.roomUsers[0].name === user.name).length === 0) {
     rooms.push(
       {
-          roomId,
-          roomUsers: [user]
+        roomId,
+        roomUsers: [user]
       }
     )
     await broadcast(updateRoomMessage())
@@ -93,10 +93,10 @@ const sendCreateGame = async (roomId) => {
     const createGameMessage = (idPlayer) => JSON.stringify({
       type: "create_game",
       data:
-          JSON.stringify({
-              idGame: roomId,  
-              idPlayer
-          }),
+        JSON.stringify({
+          idGame: roomId,  
+          idPlayer
+        }),
       id: 0,
   })
   try {
@@ -110,7 +110,7 @@ const sendCreateGame = async (roomId) => {
   }
 }
 
-const addShipsToRoom = (data) => {
+const addShipsToUser = (data) => {
   rooms = rooms.map(room => {
     if (room.roomId === data.gameId) {
       room.roomUsers.map(user => {
@@ -122,6 +122,22 @@ const addShipsToRoom = (data) => {
     }
     return room
   })
+  const filteredRoom = rooms.filter(room => room.roomId === data.gameId)[0]
+  const usersWithShipsCount = filteredRoom.roomUsers.reduce((acc, rec) => {
+    if (Object.keys(rec).includes('ships')) return acc + 1
+    return acc
+  }, 0)
+  if (usersWithShipsCount === 2) filteredRoom.roomUsers.map(user => sendStartGame(user.index, user.ships))
+}
+
+const sendStartGame = (currentPlayerIndex, ships) => {
+  const message = JSON.stringify({
+    type: "start_game",
+    data: JSON.stringify(ships),
+    currentPlayerIndex,
+    id: 0
+  })
+  sendMessageToUser(currentPlayerIndex, message)
 }
 
 export const handleMessage = async (ws, message) => {
@@ -153,7 +169,7 @@ export const handleMessage = async (ws, message) => {
       // await sendCreateGame(roomIndex)
     } else if (message.type === 'add_ships') {
       const data = JSON.parse(message.data)
-      addShipsToRoom(data)
+      addShipsToUser(data)
       console.log(`rooms after adding ships: ${JSON.stringify(rooms)}`)
     }
   } catch (error) {
