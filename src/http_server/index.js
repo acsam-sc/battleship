@@ -39,6 +39,7 @@ export const httpServer = http.createServer(function (req, res) {
           sockets.filter((c) => c.readyState !== 3)
           console.log(`WebSocket with ID=${ws.id} was closed`)
           await deleteActiveUser(ws.id)
+          ws.close()
         })
     }
     
