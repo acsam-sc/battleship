@@ -28,12 +28,12 @@ export const getUserByWsId = async (wsId) => {
   }
 }
 
-export const getUserByName = async (name) => {
+export const sendMessageToUser = async (userIndex, message) => {
   try {
-    const user = activeUsers.filter(it => it.name === name)[0]
-    return Promise.resolve(user)
+    const user = activeUsers.filter(it => it.index === userIndex)[0]
+    await user.ws.send(message)
   } catch (error) {
-    console.log(`Error getting UserByName: ${error}`)
+    console.log(`Error getting sending MessageToUser: ${error}`)
   }
 }
 

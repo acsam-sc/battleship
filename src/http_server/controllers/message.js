@@ -3,7 +3,7 @@ import {
   getUserByWsId,
   broadcast,
   getAllUsers,
-  getUserByName
+  sendMessageToUser
 } from '../services/users.js'
 
 let rooms = []
@@ -34,46 +34,35 @@ const createRoom = async (roomId, user) => {
   console.log(`createRoomFunc: roomId: ${roomId}, user: ${JSON.stringify(user)}`)
   if (rooms.length === 0 || rooms.filter(it => it.roomUsers[0].name === user.name).length === 0) {
     rooms.push(
-    {
-        roomId,
-        roomUsers: [user]
-    }
+      {
+          roomId,
+          roomUsers: [user]
+      }
     )
+    await broadcast(updateRoomMessage())
   console.log(`createRoom rooms after push: ${JSON.stringify(rooms)}`)
   }
 }
 
 const addUserToRoom = async (roomId, user) => {
   console.log(`addUserToRoom: roomId: ${roomId}, user: ${JSON.stringify(user)}`)
+  const filteredRoom = rooms.filter(it => it.roomId === roomId)[0]
   try {
-    if (rooms.filter(it => it.roomUsers[0].name === user.name).length === 0) {
-      // console.log(`rooms.filter: ${it.roomUsers[0].name} `)
-      rooms = rooms.map(it => {
-        if (it.roomId === roomId) {
-          return { ...it, roomUsers: [ ...it.roomUsers, user ] }
-        } else return it
-      })
-    }
+      if (filteredRoom.roomUsers[0].name !== user.name) {
+        rooms = rooms.map(it => {
+          if (it.roomId === roomId) {
+            return { ...it, roomUsers: [ ...it.roomUsers, user ] }
+          } else return it
+        })
+        await broadcast(updateRoomMessage())
+        await sendCreateGame(roomId)
+      }
   } catch (error) {
     console.log(`Error adding user to room: ${error}`)
   }
 
   console.log(`addUserToRoom: ${JSON.stringify(rooms)}`)
 }
-
-// const sendUpdateRoom = (ws) => {
-//   const availableRooms = rooms.filter(it => it.roomUsers.length === 1)
-//   const message = JSON.stringify({
-//     type: "update_room",
-//     data: JSON.stringify(availableRooms),
-//     id: 0,
-// })
-//   try {
-//     ws.send(message)
-//   } catch (error) {
-//     console.log(`Error sending Reg Message: ${error}`)
-//   }
-// }
 
 const updateRoomMessage = () => {
   const availableRooms = rooms.filter(it => it.roomUsers.length === 1)
@@ -113,14 +102,26 @@ const sendCreateGame = async (roomId) => {
   try {
     rooms.map(it => {
       if (it.roomId === roomId) it.roomUsers.map(async it => {
-        const user = await getUserByName(it.name)
-        user.ws.send(createGameMessage(it.index))
+        sendMessageToUser(it.index, createGameMessage(it.index))
       })
     })
-    // ws.send(message())
   } catch (error) {
     console.log(`Error sending Create Game Message: ${error}`)
   }
+}
+
+const addShipsToRoom = (data) => {
+  rooms = rooms.map(room => {
+    if (room.roomId === data.gameId) {
+      room.roomUsers.map(user => {
+        if (user.index === data.indexPlayer) {
+          const userWithShips = Object.assign(user, { ships: data.ships })
+          return { ...room, roomUsers: [ ...room.roomUsers, userWithShips] }
+        }
+      })
+    }
+    return room
+  })
 }
 
 export const handleMessage = async (ws, message) => {
@@ -130,7 +131,6 @@ export const handleMessage = async (ws, message) => {
       await registerUser(ws, user)
       .then(async (user) => {
         await sendRegMessage(ws, user, false, '')
-        // if (rooms.length > 0) sendUpdateRoom(ws)
         await broadcast(updateWinnersMessage())
         if (rooms.length > 0) broadcast(updateRoomMessage())
       })
@@ -143,14 +143,18 @@ export const handleMessage = async (ws, message) => {
       // console.log(`userForCreateRoom: ${JSON.stringify(user)}`)
       await createRoom(roomIndex, user)
       // sendUpdateRoom(ws)
-      await broadcast(updateRoomMessage())
+      // await broadcast(updateRoomMessage())
     } else if (message.type === 'add_user_to_room') {
       const roomIndex = JSON.parse(message.data).indexRoom
       const user = await getUserByWsId(ws.id)
       // console.log(`userForCreateRoom: ${JSON.stringify(user)}`)
       await addUserToRoom(roomIndex, user)
-      await broadcast(updateRoomMessage())
-      await sendCreateGame(roomIndex)
+      // await broadcast(updateRoomMessage())
+      // await sendCreateGame(roomIndex)
+    } else if (message.type === 'add_ships') {
+      const data = JSON.parse(message.data)
+      addShipsToRoom(data)
+      console.log(`rooms after adding ships: ${JSON.stringify(rooms)}`)
     }
   } catch (error) {
     console.log(`Error handling message: ${error}`)
