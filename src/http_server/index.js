@@ -22,9 +22,6 @@ export const httpServer = http.createServer(function (req, res) {
     });
 
     const wss = new WebSocketServer({ port: wsPort })
-    // const onMessage = (data) => {
-    //     console.log('received:', JSON.parse(data));
-    // }
 
     const onConnection = async (ws) => {
         ws.id = Math.floor(Math.random() * 100)
@@ -34,16 +31,13 @@ export const httpServer = http.createServer(function (req, res) {
             console.log('MESSAGE:', message)
             await handleMessage(ws, message)
         });
-        // ws.send('something');
         ws.on('close', async () => {
           sockets.filter((c) => c.readyState !== 3)
           console.log(`WebSocket with ID=${ws.id} was closed`)
           await deleteActiveUser(ws.id)
-          ws.close()
         })
     }
     
-    // ws.on('message', (data) => onMessage(data))
     wss.on('connection', async (ws) => await onConnection(ws))
 });
 
